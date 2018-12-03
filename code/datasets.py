@@ -251,7 +251,7 @@ class TextDataset(data.Dataset):
         #for key in self.filenames:
             #caption_name = '%s/text/%s.txt' % (self.data_dir, key)
             captions = load_captions(caption_name)
-            caption_dict[key] = captions
+            caption_dict[key[0].split('/')[1]] = captions
         return caption_dict
 
     def load_embedding(self, data_dir, embedding_type):
