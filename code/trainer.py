@@ -11,7 +11,7 @@ from torch.nn.utils.rnn import *
 import numpy as np
 import os
 import time
-import pickle
+import cPickle as pickle
 from PIL import Image, ImageFont, ImageDraw
 from copy import deepcopy
 
@@ -696,10 +696,10 @@ class condGANTrainer(object):
         # ak6384 - Modification start
 
         if cfg.DATASET_NAME == 'birds':
-            with open('./data/birds_vocab.pkl', 'rb') as f:
+            with open('../data/birds_vocab.pkl', 'rb') as f:
                 self.vocab = pickle.load(f)
         elif cfg.DATASET_NAME == 'flowers':
-            with open('./data/flowers_vocab.pkl', 'rb') as f:
+            with open('../data/flowers_vocab.pkl', 'rb') as f:
                 self.vocab = pickle.load(f)
         else:
             print('Dataset not supported, please select either birds or flowers.')
@@ -713,8 +713,8 @@ class condGANTrainer(object):
         self.caption_discriminator = CaptionDiscriminator(self.embed_size, self.hidden_size, len(self.vocab),
                                                           self.num_layers).cuda()
 
-        pretrained_caption_gen = './checkpoints/pretrained-generator-100.pkl'
-        pretrained_caption_disc = './checkpoints/pretrained-discriminator-20.pkl'
+        pretrained_caption_gen = '../checkpoints/pretrained-generator-100.pkl'
+        pretrained_caption_disc = '../checkpoints/pretrained-discriminator-20.pkl'
 
         if os.path.exists(pretrained_caption_gen):
             print('loaded pretrained caption generator')
