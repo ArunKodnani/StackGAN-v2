@@ -3,7 +3,6 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
-
 import torch.utils.data as data
 import torchvision.transforms as transforms
 from PIL import Image
@@ -24,6 +23,7 @@ import six
 import string
 import sys
 import torch
+
 if sys.version_info[0] == 2:
     import cPickle as pickle
 else:
@@ -72,8 +72,9 @@ class ImageFolder(data.Dataset):
         classes, class_to_idx = self.find_classes(root, custom_classes)
         imgs = self.make_dataset(classes, class_to_idx)
         if len(imgs) == 0:
-            raise(RuntimeError("Found 0 images in subfolders of: " + root + "\n"
-                               "Supported image extensions are: " + ",".join(IMG_EXTENSIONS)))
+            raise (RuntimeError("Found 0 images in subfolders of: " + root + "\n"
+                                                                             "Supported image extensions are: " + ",".join(
+                IMG_EXTENSIONS)))
 
         self.root = root
         self.imgs = imgs
@@ -246,8 +247,8 @@ class TextDataset(data.Dataset):
             return captions
 
         caption_dict = {}
-        for key in self.filenames:
-            caption_name = '%s/text/%s.txt' % (self.data_dir, key)
+        for key in zip(self.filenames, self.class_id):
+            caption_name = '%s/text/class_00%s/%s.txt' % (self.data_dir, ("0" + key[1] if len(str(key[1])) == 0 else key[1]), key[0].split('/')[1])
             captions = load_captions(caption_name)
             caption_dict[key] = captions
         return caption_dict
@@ -297,7 +298,7 @@ class TextDataset(data.Dataset):
                         bbox, self.transform, normalize=self.norm)
 
         wrong_ix = random.randint(0, len(self.filenames) - 1)
-        if(self.class_id[index] == self.class_id[wrong_ix]):
+        if (self.class_id[index] == self.class_id[wrong_ix]):
             wrong_ix = random.randint(0, len(self.filenames) - 1)
         wrong_key = self.filenames[wrong_ix]
         if self.bbox is not None:
@@ -305,7 +306,7 @@ class TextDataset(data.Dataset):
         else:
             wrong_bbox = None
         wrong_img_name = '%s/images/%s.jpg' % \
-            (data_dir, wrong_key)
+                         (data_dir, wrong_key)
         wrong_imgs = get_imgs(wrong_img_name, self.imsize,
                               wrong_bbox, self.transform, normalize=self.norm)
 
