@@ -292,7 +292,7 @@ class TextDataset(data.Dataset):
         else:
             bbox = None
             data_dir = self.data_dir
-        # captions = self.captions[key]
+        captions = self.captions[key]
         embeddings = self.embeddings[index, :, :]
         img_name = '%s/images/%s.jpg' % (data_dir, key)
         imgs = get_imgs(img_name, self.imsize,
@@ -316,7 +316,7 @@ class TextDataset(data.Dataset):
         if self.target_transform is not None:
             embedding = self.target_transform(embedding)
 
-        return imgs, wrong_imgs, embedding, key  # captions
+        return imgs, wrong_imgs, embedding, key, captions
 
     def prepair_test_pairs(self, index):
         key = self.filenames[index]
@@ -326,7 +326,7 @@ class TextDataset(data.Dataset):
         else:
             bbox = None
             data_dir = self.data_dir
-        # captions = self.captions[key]
+        captions = self.captions[key]
         embeddings = self.embeddings[index, :, :]
         img_name = '%s/images/%s.jpg' % (data_dir, key)
         imgs = get_imgs(img_name, self.imsize,
@@ -335,7 +335,7 @@ class TextDataset(data.Dataset):
         if self.target_transform is not None:
             embeddings = self.target_transform(embeddings)
 
-        return imgs, embeddings, key  # captions
+        return imgs, embeddings, key, captions
 
     def __getitem__(self, index):
         return self.iterator(index)

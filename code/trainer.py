@@ -7,6 +7,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 import torch.optim as optim
 import torchvision.utils as vutils
+from torch.nn.utils.rnn import *
 import numpy as np
 import os
 import time
@@ -551,7 +552,7 @@ class condGANTrainer(object):
         self.num_batches = len(self.data_loader)
 
     def prepare_data(self, data):
-        imgs, w_imgs, t_embedding, _ = data
+        imgs, w_imgs, t_embedding, key, captions = data
 
         real_vimgs, wrong_vimgs = [], []
         if cfg.CUDA:
@@ -565,7 +566,7 @@ class condGANTrainer(object):
             else:
                 real_vimgs.append(Variable(imgs[i]))
                 wrong_vimgs.append(Variable(w_imgs[i]))
-        return imgs, real_vimgs, wrong_vimgs, vembedding
+        return imgs, real_vimgs, wrong_vimgs, vembedding, captions
 
     def train_Dnet(self, idx, count):
         flag = count % 100
@@ -655,33 +656,40 @@ class condGANTrainer(object):
                 like_mu1 = cfg.TRAIN.COEFF.COLOR_LOSS * nn.MSELoss()(mu1, mu2)
                 like_cov1 = cfg.TRAIN.COEFF.COLOR_LOSS * 5 * \
                     nn.MSELoss()(covariance1, covariance2)
+
                 errG_total = errG_total + like_mu1 + like_cov1
                 if flag == 0:
                     sum_mu = summary.scalar('G_like_mu1', like_mu1.data[0])
                     self.summary_writer.add_summary(sum_mu, count)
                     sum_cov = summary.scalar('G_like_cov1', like_cov1.data[0])
                     self.summary_writer.add_summary(sum_cov, count)
-        #
-        # # ak6384 - Modification start
-        #
-        # # Generate caption with caption GAN (inverse GAN)
-        # # fake_images.requires_grad = False # freeze the caption generator
-        # self.caption_generator.zero_grad()
-        # sampled_captions, _ = self.caption_generator.forward(fake_images, right_captions, right_lengths)
-        # targets = pack_padded_sequence(right_captions, right_lengths, batch_first=True)[0]
-        # loss_cycle_A = mle_criterion(sampled_captions, targets) * lambda_a
-        # loss_cycle_A.backward()
-        # self.optimG2.step()
-        # self.optim_captionG.step()
-        # cycle_a_losses.append(loss_cycle_A.data[0])
-        #
-        # # ak6384 - Modification end
+
+        # ak6384 - Modification start
+
+        # Generate caption with caption GAN (inverse GAN)
+        # fake_images.requires_grad = False # freeze the caption generator
+        # cycle gan params
+        lambda_a = 2
+        lambda_b = 2
+        mle_criterion = nn.CrossEntropyLoss()
+        self.caption_generator.zero_grad()
+        lengths = [len(cap) for cap in self.captions]
+        sampled_captions, _ = self.caption_generator.forward(self.fake_imgs[-1], self.captions, lengths)
+        targets = pack_padded_sequence(self.captions, lengths, batch_first=True)[0]
+        loss_cycle_A = mle_criterion(sampled_captions, targets) * lambda_a
+        loss_cycle_A.backward()
+        self.optim_captionG.step()
+
+
+        # ak6384 - Modification end
+
 
         kl_loss = KL_loss(mu, logvar) * cfg.TRAIN.COEFF.KL
         errG_total = errG_total + kl_loss
         errG_total.backward()
         self.optimizerG.step()
-        return kl_loss, errG_total
+        # self.cycle_a_losses.append(loss_cycle_A.data[0] + errG_total.data[0])
+        return kl_loss, errG_total, loss_cycle_A
 
     def train(self):
 
@@ -754,6 +762,7 @@ class condGANTrainer(object):
         predictions = []
         count = start_count
         start_epoch = start_count // (self.num_batches)
+        self.cycle_a_losses = []
         for epoch in range(start_epoch, self.max_epoch):
             start_t = time.time()
 
@@ -762,7 +771,7 @@ class condGANTrainer(object):
                 # (0) Prepare training data
                 ######################################################
                 self.imgs_tcpu, self.real_imgs, self.wrong_imgs, \
-                    self.txt_embedding = self.prepare_data(data)
+                    self.txt_embedding, self.captions = self.prepare_data(data)
 
                 #######################################################
                 # (1) Generate fake images
@@ -787,7 +796,7 @@ class condGANTrainer(object):
                 #######################################################
                 # (3) Update G network: maximize log(D(G(z)))
                 ######################################################
-                kl_loss, errG_total = self.train_Gnet(count)
+                kl_loss, errG_total, loss_cycle_A = self.train_Gnet(count)
                 for p, avg_p in zip(self.netG.parameters(), avg_param_G):
                     avg_p.mul_(0.999).add_(0.001, p.data)
 
@@ -799,9 +808,11 @@ class condGANTrainer(object):
                     summary_D = summary.scalar('D_loss', errD_total.data[0])
                     summary_G = summary.scalar('G_loss', errG_total.data[0])
                     summary_KL = summary.scalar('KL_loss', kl_loss.data[0])
+                    summary_LC = summary.scalar('Cycle_loss', loss_cycle_A.data[0])
                     self.summary_writer.add_summary(summary_D, count)
                     self.summary_writer.add_summary(summary_G, count)
                     self.summary_writer.add_summary(summary_KL, count)
+                    self.summary_writer.add_summary(summary_LC, count)
 
                 count = count + 1
 
@@ -835,11 +846,11 @@ class condGANTrainer(object):
 
             end_t = time.time()
             print('''[%d/%d][%d]
-                         Loss_D: %.2f Loss_G: %.2f Loss_KL: %.2f Time: %.2fs
+                         Loss_D: %.2f Loss_G: %.2f Loss_KL: %.2f Loss_Cycle: %.2f Time: %.2fs
                       '''  # D(real): %.4f D(wrong):%.4f  D(fake) %.4f
                   % (epoch, self.max_epoch, self.num_batches,
                      errD_total.data[0], errG_total.data[0],
-                     kl_loss.data[0], end_t - start_t))
+                     kl_loss.data[0], loss_cycle_A.data[0], end_t - start_t))
 
         save_model(self.netG, avg_param_G, self.netsD, count, self.model_dir)
         self.summary_writer.close()
