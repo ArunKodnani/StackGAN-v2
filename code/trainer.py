@@ -10,6 +10,7 @@ import torchvision.utils as vutils
 import numpy as np
 import os
 import time
+import pickle
 from PIL import Image, ImageFont, ImageDraw
 from copy import deepcopy
 
@@ -20,6 +21,9 @@ from tensorboardX import summary
 from tensorboardX import FileWriter
 
 from model import G_NET, D_NET64, D_NET128, D_NET256, D_NET512, D_NET1024, INCEPTION_V3
+
+from caption_gan_model import CaptionDiscriminator, CaptionGenerator
+
 
 
 
@@ -250,6 +254,7 @@ class GANTrainer(object):
         self.data_loader = data_loader
         self.num_batches = len(self.data_loader)
 
+
     def prepare_data(self, data):
         imgs = data
 
@@ -344,6 +349,41 @@ class GANTrainer(object):
         return errG_total
 
     def train(self):
+        # ak6384 - Modification start
+
+        if cfg.DATASET_NAME == 'birds':
+            with open('./data/birds_vocab.pkl', 'rb') as f:
+                self.vocab = pickle.load(f)
+        elif cfg.DATASET_NAME == 'flowers':
+            with open('./data/flowers_vocab.pkl', 'rb') as f:
+                self.vocab = pickle.load(f)
+        else:
+            print('Dataset not supported, please select either birds or flowers.')
+            exit()
+
+        self.embed_size = 256
+        self.hidden_size = 512
+        self.num_layers = 1
+        self.caption_generator = CaptionGenerator(self.embed_size, self.hidden_size, len(self.vocab),
+                                                  self.num_layers).cuda()
+        self.caption_discriminator = CaptionDiscriminator(self.embed_size, self.hidden_size, len(self.vocab),
+                                                          self.num_layers).cuda()
+
+        pretrained_caption_gen = './checkpoints/pretrained-generator-100.pkl'
+        pretrained_caption_disc = './checkpoints/pretrained-discriminator-20.pkl'
+
+        if os.path.exists(pretrained_caption_gen):
+            print('loaded pretrained caption generator')
+            self.caption_generator.load_state_dict(torch.load(pretrained_caption_gen))
+
+        if os.path.exists(pretrained_caption_disc):
+            print('loaded pretrained caption discriminator')
+            self.caption_discriminator.load_state_dict(torch.load(pretrained_caption_disc))
+
+        self.optim_captionG = torch.optim.Adam(list(self.caption_generator.parameters()))
+        self.optim_captionD = torch.optim.Adam(list(self.caption_discriminator.parameters()))
+
+        # ak6384 - Modification End
         self.netG, self.netsD, self.num_Ds,\
             self.inception_model, start_count = load_network(self.gpus)
         avg_param_G = copy_G_params(self.netG)
@@ -385,6 +425,11 @@ class GANTrainer(object):
                 ######################################################
                 noise.data.normal_(0, 1)
                 self.fake_imgs, _, _ = self.netG(noise)
+
+                # ak6384 - Modification start
+                for image in self.fake_imgs:
+                    print(image.size())
+                # ak6384 - Modification end
 
                 #######################################################
                 # (2) Update D network
