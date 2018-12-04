@@ -46,9 +46,9 @@ class CaptionGenerator(nn.Module):
 
     def forward(self, images, captions, lengths):
         """Getting captions"""
-        print("Entering Encoder")
+        # print("Entering Encoder")
         self.features = self.encoder(images)
-        print("Entering Decoder")
+        # print("Entering Decoder")
         outputs, packed_lengths = self.decoder(self.features, captions, lengths,
                                                noise=False)  # TODO (packed_size, vocab_size)
         # outputs = self.decoder(self.features, captions, lengths, noise=False) # TODO (packed_size, vocab_size)
