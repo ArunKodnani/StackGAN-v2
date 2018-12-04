@@ -292,9 +292,10 @@ class TextDataset(data.Dataset):
         else:
             bbox = None
             data_dir = self.data_dir
-        captions = self.captions[key]
+        captions = self.captions[key.split('/')[1]]
         embeddings = self.embeddings[index, :, :]
         img_name = '%s/images/%s.jpg' % (data_dir, key)
+        #print(img_name)
         imgs = get_imgs(img_name, self.imsize,
                         bbox, self.transform, normalize=self.norm)
 
@@ -326,7 +327,7 @@ class TextDataset(data.Dataset):
         else:
             bbox = None
             data_dir = self.data_dir
-        captions = self.captions[key]
+        captions = self.captions[key.split('/')[1]]
         embeddings = self.embeddings[index, :, :]
         img_name = '%s/images/%s.jpg' % (data_dir, key)
         imgs = get_imgs(img_name, self.imsize,
