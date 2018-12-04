@@ -34,17 +34,17 @@ class EncoderCNN(nn.Module):
 
     def forward(self, images):
         """Extract the image feature vectors."""
-        print("Input image size")
-        print(images.size())
+        # print("Input image size")
+        # print(images.size())
         # features = self.resnet(images)
         features = self.alexnet_features(images)
-        print("After alexnet size")
-        print(features.size())
+        # print("After alexnet size")
+        # print(features.size())
         features = Variable(features.data)
         features = features.view(features.size(0), -1)
         # features = self.alexnet_classifier(features)
         # features = features.view(features.size(0), -1)
-        print("Before Linear")
+        # print("Before Linear")
         features = self.bn(self.linear(features))
         return features
 
@@ -69,28 +69,28 @@ class DecoderRNN(nn.Module):
         """Decode image feature vectors and generates captions."""
         # TODO: should not use all teacher forcing
         # return: outputs (s, V), lengths list(Tmax)
-        print("Line 72")
+        # print("Line 72")
         embeddings = self.embed(captions)
         if not noise:
-            print("Inside if")
+            # print("Inside if")
             embeddings = torch.cat((features.unsqueeze(1), embeddings), 1)
         else:
-            print("inside else")
+            # print("inside else")
             max_embedding = torch.max(features[0, :]).data.numpy()[0]
-            print("After max_embedding")
+            # print("After max_embedding")
             min_embedding = torch.min(features[0, :]).data.numpy()[0]
-            print("After min_embedding")
+            # print("After min_embedding")
             concat_noise = (max_embedding - min_embedding) * torch.rand(
                 (embeddings.size(0), 1, embeddings.size(2))) + torch.FloatTensor([float(min_embedding)]).unsqueeze(
                 0).unsqueeze(1)
-            print("After concat_noise")
+            # print("After concat_noise")
             features = torch.cat((features.unsqueeze(1), Variable(concat_noise, requires_grad=False)), 1)
             embeddings = torch.cat((features, embeddings), 1)
-        print("Created Embedding")
+        # print("Created Embedding")
         packed = pack_padded_sequence(embeddings, lengths, batch_first=True)
-        print("Before LSTM")
+        # print("Before LSTM")
         hiddens, _ = self.lstm(packed)
-        print("Before Linear")
+        # print("Before Linear")
         outputs = self.linear(hiddens[0])
         return outputs, hiddens[1]
 
