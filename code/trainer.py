@@ -546,6 +546,8 @@ class condGANTrainer(object):
         torch.cuda.set_device(self.gpus[0])
         cudnn.benchmark = True
 
+        self.total_cyclic_loss = []
+
         self.batch_size = cfg.TRAIN.BATCH_SIZE * self.num_gpus
         self.max_epoch = cfg.TRAIN.MAX_EPOCH
         self.snapshot_interval = cfg.TRAIN.SNAPSHOT_INTERVAL
@@ -631,11 +633,11 @@ class condGANTrainer(object):
         length_generated=[]
         caption_max_generated = []
         for idx, captiontuple in enumerate(self.captions):
-            print("Processing record number -->", idx)
+            # print("Processing record number -->", idx)
             captionlist = list(captiontuple)
             captionlength = []
             for i, txt in enumerate(captionlist):
-                print("Processing Caption -->", i)
+                # print("Processing Caption -->", i)
                 # preprocess txt and wrong_txt
                 txt = str(txt)
                 txt = txt.strip()
@@ -650,25 +652,25 @@ class condGANTrainer(object):
                 caption.append(self.vocab('<end>'))
                 #caption = torch.LongTensor(caption)
                 if torch.cuda.is_available():
-                    print("CUDAA!!")
+                    # print("CUDAA!!")
                     caption = torch.cuda.LongTensor(caption)
                 else:
                     caption = torch.LongTensor(caption)
                 captionlength.append(len(caption))
                 captionlist[i] = caption
-                print("Processed Caption -->", i)
+                # print("Processed Caption -->", i)
             #captiontensor = torch.stack(captionlist)
             captions_generated.append(captionlist)
             length_generated.append(captionlength)
-            print("Generating Tensor")
+            # print("Generating Tensor")
             #captionlistmax = torch.zeros(len(captionlist), max(captionlength)).long()
             if torch.cuda.is_available():
                 captionlistmax = torch.cuda.LongTensor(len(captionlist), max(captionlength)).fill_(0)
             else:
                 captionlistmax = torch.zeros(len(captionlist), max(captionlength)).long()
-            print("Entering for loop")
+            # print("Entering for loop")
             for i, cap in enumerate(captionlist):
-                print("Processing Max length for Caption -->", i)
+                # print("Processing Max length for Caption -->", i)
                 end = captionlength[i]
                 captionlistmax[i, :end] = cap[:end]
             #captionlistmaxtensor = torch.stack(captionlistmax)
@@ -748,14 +750,14 @@ class condGANTrainer(object):
             inputimages = []
             inputcaptions = []
             inputlengths = []
-            print("processing sorted")
+            # print("processing sorted")
             for observation in result:
                 inputcaptions.append(observation[0])
                 inputimages.append(observation[1])
                 inputlengths.append(observation[2])
             inputimages = torch.stack(inputimages)
             inputcaptions = torch.stack(inputcaptions)
-            print("Processed sorted")
+            # print("Processed sorted")
             sampled_captions, _ = self.caption_generator.forward(inputimages, inputcaptions, inputlengths)
             targets = pack_padded_sequence(inputcaptions, inputlengths, batch_first=True)[0]
             loss_cycle.append(mle_criterion(sampled_captions, targets) * lambda_a)
@@ -765,6 +767,7 @@ class condGANTrainer(object):
         loss_cycle_A = torch.stack(loss_cycle).mean(0)
         # print("Average Loss Cycle")
         # print(loss_cycle_A)
+        self.total_cyclic_loss.append(loss_cycle_A)
         loss_cycle_A.backward()
         self.optim_captionG.step()
 
@@ -776,6 +779,10 @@ class condGANTrainer(object):
         errG_total = errG_total + kl_loss
         errG_total.backward()
         self.optimizerG.step()
+
+
+
+
         # self.cycle_a_losses.append(loss_cycle_A.data[0] + errG_total.data[0])
         return kl_loss, errG_total, loss_cycle_A
 
@@ -793,6 +800,7 @@ class condGANTrainer(object):
             print('Dataset not supported, please select either birds or flowers.')
             exit()
 
+        self.figure_path = "../figures/"
         self.embed_size = 256
         self.hidden_size = 512
         self.num_layers = 1
@@ -939,6 +947,13 @@ class condGANTrainer(object):
                   % (epoch, self.max_epoch, self.num_batches,
                      errD_total.data[0], errG_total.data[0],
                      kl_loss.data[0], loss_cycle_A.data[0], end_t - start_t))
+
+            #Plot the graphs for Cyclic Loss for every 10 epochs
+            if epoch%10==0:
+                plt.plot(self.total_cyclic_loss, label='total_cycle_losses')
+                plt.savefig(self.figure_path + 'total_cyclic_losses'+epoch+'.png')
+                plt.clf()
+
 
         save_model(self.netG, avg_param_G, self.netsD, count, self.model_dir)
         self.summary_writer.close()
