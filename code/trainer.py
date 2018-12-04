@@ -620,13 +620,13 @@ class condGANTrainer(object):
     def train_Gnet(self, count):
         #print("Caption")
         #print(self.captions[0])
-        print("Caption Details --> ")
-        print("Type --> ", type(self.captions))
-        print("Length --> ", len(self.captions))
+        # print("Caption Details --> ")
+        # print("Type --> ", type(self.captions))
+        # print("Length --> ", len(self.captions))
 
-        print("Individual Caption detail -->")
-        print("Type --> ", type(self.captions[0]))
-        print("Length --> ", [len(a) for a in self.captions])
+        # print("Individual Caption detail -->")
+        # print("Type --> ", type(self.captions[0]))
+        # print("Length --> ", [len(a) for a in self.captions])
         captions_generated=[]
         length_generated=[]
         caption_max_generated = []
@@ -674,13 +674,13 @@ class condGANTrainer(object):
             #captionlistmaxtensor = torch.stack(captionlistmax)
             caption_max_generated.append(captionlistmax)
 
-        print("caption max generated -->")
-        print("Size 0 -->", caption_max_generated[0].size())
-        print("Size 1 -->", caption_max_generated[1].size())
+        # print("caption max generated -->")
+        # print("Size 0 -->", caption_max_generated[0].size())
+        # print("Size 1 -->", caption_max_generated[1].size())
 
-        print("length_generated -->")
-        print("length 0 --> ", length_generated[0])
-        print("lenth 1 --> ", length_generated[1])
+        # print("length_generated -->")
+        # print("length 0 --> ", length_generated[0])
+        # print("lenth 1 --> ", length_generated[1])
         self.netG.zero_grad()
         errG_total = 0
         flag = count % 100
@@ -742,8 +742,8 @@ class condGANTrainer(object):
         for index in range(len(caption_max_generated)):
             itrlist = [caption_max_generated[index], self.fake_imgs[-2], length_generated[index]]
             ziplist = zip(*itrlist)
-            print("Zipped")
-            print(type(ziplist[0][2]))
+            # print("Zipped")
+            # print(type(ziplist[0][2]))
             result = sorted(ziplist, key=lambda x: int(x[2]), reverse=True)
             inputimages = []
             inputcaptions = []
@@ -759,12 +759,12 @@ class condGANTrainer(object):
             sampled_captions, _ = self.caption_generator.forward(inputimages, inputcaptions, inputlengths)
             targets = pack_padded_sequence(inputcaptions, inputlengths, batch_first=True)[0]
             loss_cycle.append(mle_criterion(sampled_captions, targets) * lambda_a)
-        print("Loss Cycle")
-        print(loss_cycle[0].size())
-        print(loss_cycle)
+        # print("Loss Cycle")
+        # print(loss_cycle[0].size())
+        # print(loss_cycle)
         loss_cycle_A = torch.stack(loss_cycle).mean(0)
-        print("Average Loss Cycle")
-        print(loss_cycle_A)
+        # print("Average Loss Cycle")
+        # print(loss_cycle_A)
         loss_cycle_A.backward()
         self.optim_captionG.step()
 
@@ -853,14 +853,14 @@ class condGANTrainer(object):
         self.cycle_a_losses = []
         for epoch in range(start_epoch, self.max_epoch):
             start_t = time.time()
-            print("Epoch --> ", epoch)
+            # print("Epoch --> ", epoch)
             for step, data in enumerate(self.data_loader, 0):
                 #######################################################
                 # (0) Prepare training data
                 ######################################################
                 self.imgs_tcpu, self.real_imgs, self.wrong_imgs, \
                     self.txt_embedding, self.captions = self.prepare_data(data)
-                print("Step 1")
+                # print("Step 1")
                 #######################################################
                 # (1) Generate fake images
                 ######################################################
@@ -872,7 +872,7 @@ class condGANTrainer(object):
                 for image in self.fake_imgs:
                     print(image.size())
                 # ak6384 - Modification end
-                print("Step 2")
+                # print("Step 2")
                 #######################################################
                 # (2) Update D network
                 ######################################################
@@ -880,7 +880,7 @@ class condGANTrainer(object):
                 for i in range(self.num_Ds):
                     errD = self.train_Dnet(i, count)
                     errD_total += errD
-                print("Step 3")
+                # print("Step 3")
                 #######################################################
                 # (3) Update G network: maximize log(D(G(z)))
                 ######################################################
